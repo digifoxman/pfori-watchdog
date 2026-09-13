@@ -107,8 +107,22 @@
     color: var(--text);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 8px 14px;
+    padding: 10px 16px;
     font-size: 0.85rem;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  button:active {
+    background: var(--border);
+    transform: scale(0.97);
+  }
+  button:disabled {
+    opacity: 0.6;
+  }
+  #fetched-at {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin: 6px 0 0;
   }
 </style>
 </head>
@@ -120,6 +134,7 @@
   <p id="empty">No checks reported yet.</p>
   <p id="error"></p>
   <button id="refresh">Refresh now</button>
+  <p id="fetched-at"></p>
 
 <script>
   const POLL_MS = 30000;
@@ -128,6 +143,8 @@
   const bannerEl = document.getElementById('banner');
   const emptyEl = document.getElementById('empty');
   const errorEl = document.getElementById('error');
+  const refreshBtn = document.getElementById('refresh');
+  const fetchedAtEl = document.getElementById('fetched-at');
 
   function timeAgo(iso) {
     const ms = Date.now() - new Date(iso).getTime();
@@ -175,6 +192,8 @@
   }
 
   async function load() {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = 'Refreshing…';
     try {
       const res = await fetch('api/status', { cache: 'no-store' });
       const data = await res.json();
@@ -186,10 +205,14 @@
       errorEl.style.display = 'block';
       errorEl.textContent = `Could not load status: ${err.message}`;
       subtitleEl.textContent = '';
+    } finally {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = 'Refresh now';
+      fetchedAtEl.textContent = `Checked for updates at ${new Date().toLocaleTimeString()}`;
     }
   }
 
-  document.getElementById('refresh').addEventListener('click', load);
+  refreshBtn.addEventListener('click', load);
   load();
   setInterval(load, POLL_MS);
 </script>
