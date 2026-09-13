@@ -7,10 +7,11 @@ architecture discussion.
 
 ## How it works
 
-- `scripts/check-*.sh` — one script per thing being checked. Each is a
+- `scripts/check-*.sh` — one script per thing being checked. Most are a
   standalone curl call with a timeout; add a new one by dropping a
   `check-<name>.sh` file in `scripts/` (source `scripts/lib/common.sh` for the
-  `http_check URL [EXPECT_SUBSTRING]` helper). No other file needs to change.
+  `http_check URL [EXPECT_SUBSTRING]` helper, or `memory_check` for a
+  local system check). No other file needs to change.
 - `run-checks.js` — runs every `check-*.sh`, appends one JSON-line result per
   check to `watchdog.log` (audit trail), and atomically writes `status.json`
   (latest result per check — this is what the dashboard reads).
@@ -32,6 +33,7 @@ crash) must stay up.
 | `site` | `GET https://exvestigate.com/`, expects HTTP 2xx/3xx |
 | `quiz` | `GET http://127.0.0.1:8090/api/quiz/status?...`, expects HTTP 2xx and `"level"` in the body |
 | `pocketbase` | `GET http://127.0.0.1:8080/api/health`, expects HTTP 2xx |
+| `memory` | Reads `/proc/meminfo` directly, fails if available memory drops below `WATCHDOG_MEM_MIN_AVAILABLE_PCT` (default 10%) |
 
 ## Local development
 
@@ -59,6 +61,7 @@ Environment variables (see `.env.example`):
 | `WATCHDOG_STALE_AFTER_MS` | Age after which the dashboard flags results as stale | `900000` (15 min) |
 | `WATCHDOG_TIMEOUT` | Per-curl timeout (seconds) | `5` |
 | `WATCHDOG_SCRIPT_TIMEOUT_MS` | Per-check-script wall-clock timeout (ms) | `10000` |
+| `WATCHDOG_MEM_MIN_AVAILABLE_PCT` | Memory check fails below this % available | `10` |
 
 The check interval (default 5 minutes) is set in
 `deploy/watchdog-checks.timer`'s `OnUnitActiveSec` — it's not read from an env

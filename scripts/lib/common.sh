@@ -48,3 +48,34 @@ http_check() {
 
   printf 'ok\t%s\tHTTP %s\n' "$duration_ms" "$http_code"
 }
+
+# memory_check
+# Reads /proc/meminfo directly (no `free` dependency) and prints a TSV
+# result line, failing if available memory drops below
+# WATCHDOG_MEM_MIN_AVAILABLE_PCT (default 10%). Uses MemAvailable, not raw
+# MemFree, since Linux counts reclaimable cache/buffers as free-ish memory
+# that MemFree alone would wrongly flag as "used".
+memory_check() {
+  local min_pct="${WATCHDOG_MEM_MIN_AVAILABLE_PCT:-10}"
+  local mem_total_kb mem_avail_kb avail_pct total_mb avail_mb used_mb message
+
+  mem_total_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo)
+  mem_avail_kb=$(awk '/^MemAvailable:/ { print $2 }' /proc/meminfo)
+
+  if [[ -z "$mem_total_kb" || -z "$mem_avail_kb" ]]; then
+    printf 'fail\t0\tcould not read /proc/meminfo\n'
+    return 0
+  fi
+
+  total_mb=$((mem_total_kb / 1024))
+  avail_mb=$((mem_avail_kb / 1024))
+  used_mb=$((total_mb - avail_mb))
+  avail_pct=$(awk -v a="$mem_avail_kb" -v t="$mem_total_kb" 'BEGIN { printf "%.1f", (a / t) * 100 }')
+  message="${used_mb}MB/${total_mb}MB used, ${avail_mb}MB available (${avail_pct}% free)"
+
+  if awk -v p="$avail_pct" -v m="$min_pct" 'BEGIN { exit !(p < m) }'; then
+    printf 'fail\t0\t%s\n' "$message"
+  else
+    printf 'ok\t0\t%s\n' "$message"
+  fi
+}
