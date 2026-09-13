@@ -135,7 +135,7 @@
   <div id="checks"></div>
   <p id="empty">No checks reported yet.</p>
   <p id="error"></p>
-  <button id="refresh">Refresh now</button>
+  <button id="refresh">Refresh page now</button>
   <p id="fetched-at"></p>
 
 <script>
@@ -209,7 +209,7 @@
       subtitleEl.textContent = '';
     } finally {
       refreshBtn.disabled = false;
-      refreshBtn.textContent = 'Refresh now';
+      refreshBtn.textContent = 'Refresh page now';
       fetchedAtEl.textContent = `Checked for updates at ${new Date().toLocaleTimeString()}`;
     }
   }
