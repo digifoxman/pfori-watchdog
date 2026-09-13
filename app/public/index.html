@@ -95,6 +95,8 @@
     color: var(--muted);
     font-size: 0.75rem;
     white-space: nowrap;
+    text-align: right;
+    line-height: 1.4;
   }
   #empty, #error {
     display: none;
@@ -175,7 +177,7 @@
               <div class="card-name">${name}</div>
               <div class="card-message">${c.message || ''}</div>
             </div>
-            <div class="card-meta">${timeAgo(c.ts)}</div>
+            <div class="card-meta">${timeAgo(c.ts)}<br>${new Date(c.ts).toLocaleTimeString()}</div>
           </div>
         `;
       }).join('');
