@@ -1,0 +1,12 @@
+# Add inside the existing exvestigate.com site block on the VPS.
+# handle_path strips the /watchdog prefix before proxying, so the Express
+# app itself is unaware of it (serves / and /api/status as normal).
+#
+# Generate the password hash with: caddy hash-password
+
+    handle_path /watchdog/* {
+        basic_auth {
+            <username> <bcrypt-hash>
+        }
+        reverse_proxy 127.0.0.1:8091
+    }

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pfori-watchdog</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f5f4;
+    --card-bg: #ffffff;
+    --text: #1c1c1c;
+    --muted: #6b6b6b;
+    --ok: #1a7f37;
+    --ok-bg: #e6f4ea;
+    --fail: #b3261e;
+    --fail-bg: #fbe9e7;
+    --stale: #8a6d00;
+    --stale-bg: #fff6d8;
+    --border: #e2e2e2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --card-bg: #232427;
+      --text: #eaeaea;
+      --muted: #9a9a9a;
+      --ok: #4bc267;
+      --ok-bg: #143820;
+      --fail: #ff6b60;
+      --fail-bg: #3a1715;
+      --stale: #e0b93d;
+      --stale-bg: #3a2f0d;
+      --border: #34353a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px 16px 40px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 480px;
+    margin-inline: auto;
+  }
+  h1 {
+    font-size: 1.3rem;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 0 0 20px;
+  }
+  #banner {
+    display: none;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--stale-bg);
+    color: var(--stale);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot.ok { background: var(--ok); }
+  .dot.fail { background: var(--fail); }
+  .dot.unknown { background: var(--muted); }
+  .card-body { flex: 1; min-width: 0; }
+  .card-name {
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .card-message {
+    color: var(--muted);
+    font-size: 0.85rem;
+    overflow-wrap: break-word;
+  }
+  .card-meta {
+    color: var(--muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  #empty, #error {
+    display: none;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  button {
+    margin-top: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+  <h1>pfori-watchdog</h1>
+  <p class="subtitle" id="subtitle">Loading&hellip;</p>
+  <div id="banner"></div>
+  <div id="checks"></div>
+  <p id="empty">No checks reported yet.</p>
+  <p id="error"></p>
+  <button id="refresh">Refresh now</button>
+
+<script>
+  const POLL_MS = 30000;
+  const checksEl = document.getElementById('checks');
+  const subtitleEl = document.getElementById('subtitle');
+  const bannerEl = document.getElementById('banner');
+  const emptyEl = document.getElementById('empty');
+  const errorEl = document.getElementById('error');
+
+  function timeAgo(iso) {
+    const ms = Date.now() - new Date(iso).getTime();
+    const s = Math.round(ms / 1000);
+    if (s < 60) return `${s}s ago`;
+    const m = Math.round(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.round(m / 60);
+    return `${h}h ago`;
+  }
+
+  function render(data) {
+    errorEl.style.display = 'none';
+    const names = Object.keys(data.checks || {}).sort();
+
+    if (names.length === 0) {
+      emptyEl.style.display = 'block';
+      checksEl.innerHTML = '';
+    } else {
+      emptyEl.style.display = 'none';
+      checksEl.innerHTML = names.map((name) => {
+        const c = data.checks[name];
+        const dotClass = c.status === 'ok' ? 'ok' : c.status === 'fail' ? 'fail' : 'unknown';
+        return `
+          <div class="card">
+            <div class="dot ${dotClass}"></div>
+            <div class="card-body">
+              <div class="card-name">${name}</div>
+              <div class="card-message">${c.message || ''}</div>
+            </div>
+            <div class="card-meta">${timeAgo(c.ts)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    subtitleEl.textContent = `Last full check run: ${timeAgo(data.run_ts)}`;
+
+    if (data.stale) {
+      bannerEl.style.display = 'block';
+      bannerEl.textContent = `No new results in a while (last run ${timeAgo(data.run_ts)}) — the check runner may be stuck or down.`;
+    } else {
+      bannerEl.style.display = 'none';
+    }
+  }
+
+  async function load() {
+    try {
+      const res = await fetch('api/status', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      render(data);
+    } catch (err) {
+      errorEl.style.display = 'block';
+      errorEl.textContent = `Could not load status: ${err.message}`;
+      subtitleEl.textContent = '';
+    }
+  }
+
+  document.getElementById('refresh').addEventListener('click', load);
+  load();
+  setInterval(load, POLL_MS);
+</script>
+</body>
+</html>

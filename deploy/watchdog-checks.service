@@ -1,0 +1,8 @@
+[Unit]
+Description=pfori-watchdog status checks (one-shot)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/var/www/project-xv/watchdog
+ExecStart=/usr/bin/env node /var/www/project-xv/watchdog/run-checks.js

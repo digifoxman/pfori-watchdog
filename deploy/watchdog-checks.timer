@@ -1,0 +1,11 @@
+[Unit]
+Description=Run pfori-watchdog checks every 5 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=watchdog-checks.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

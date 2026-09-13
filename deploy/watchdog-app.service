@@ -1,0 +1,15 @@
+[Unit]
+Description=pfori-watchdog dashboard app
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/project-xv/watchdog/app
+ExecStart=/usr/bin/env node server.js
+EnvironmentFile=-/var/www/project-xv/watchdog/.env
+Restart=on-failure
+RestartSec=5
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
