@@ -9,7 +9,10 @@ ExecStart=/usr/bin/env node server.js
 EnvironmentFile=-/var/www/project-xv/watchdog/.env
 Restart=on-failure
 RestartSec=5
-User=www-data
+# node lives under /root/.nvm (root's home dir isn't traversable by other
+# users), so every Node process on this VPS runs as root - matches
+# quiz.service and the pm2-run astro-frontend process.
+User=root
 
 [Install]
 WantedBy=multi-user.target

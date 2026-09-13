@@ -7,17 +7,23 @@ TIMEOUT="${WATCHDOG_TIMEOUT:-5}"
 # ok requires an HTTP 2xx/3xx status, and (if given) EXPECT_SUBSTRING present in the body.
 http_check() {
   local url=$1 expect=${2:-}
-  local start end duration_ms body http_code err_file curl_exit err
+  local body http_code time_total duration_ms err_file curl_exit err
 
+  # Ask curl for its own timing (%{time_total}, seconds with fractional part)
+  # rather than wrapping the call in our own `date` calls - this VPS's `date`
+  # is uutils coreutils, whose %N ignores GNU's %3N width truncation and
+  # returns full nanoseconds, silently producing bogus millisecond deltas.
   err_file=$(mktemp)
-  start=$(date +%s%3N)
-  if body=$(curl -sS --max-time "$TIMEOUT" -o - -w $'\n%{http_code}' "$url" 2>"$err_file"); then
+  if body=$(curl -sS --max-time "$TIMEOUT" -o - -w $'\n%{http_code}\n%{time_total}' "$url" 2>"$err_file"); then
     curl_exit=0
   else
     curl_exit=$?
   fi
-  end=$(date +%s%3N)
-  duration_ms=$((end - start))
+
+  time_total=$(printf '%s' "$body" | tail -n1)
+  duration_ms=$(awk -v t="$time_total" 'BEGIN { printf "%d", t * 1000 }' 2>/dev/null)
+  duration_ms=${duration_ms:-0}
+  body=$(printf '%s' "$body" | sed '$d')
 
   if [[ $curl_exit -ne 0 ]]; then
     err=$(tr '\n' ' ' < "$err_file")
