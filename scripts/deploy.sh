@@ -32,6 +32,10 @@ ssh "$REMOTE" "
   sudo systemctl restart watchdog-app.service
 "
 
+echo "==> Installing logrotate config"
+scp "$LOCAL_DIR"/deploy/watchdog.logrotate "$REMOTE:/tmp/"
+ssh "$REMOTE" "sudo mv /tmp/watchdog.logrotate /etc/logrotate.d/watchdog"
+
 echo "==> Done. Check status with:"
 echo "    ssh $REMOTE systemctl status watchdog-checks.timer watchdog-app.service"
 echo "    ssh $REMOTE journalctl -u watchdog-checks.service -n 20"

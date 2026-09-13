@@ -79,3 +79,36 @@ memory_check() {
     printf 'ok\t0\t%s\n' "$message"
   fi
 }
+
+# disk_check
+# Reads `df` for WATCHDOG_DISK_PATH (default "/") and prints a TSV result
+# line, failing if available disk space drops below
+# WATCHDOG_DISK_MIN_AVAILABLE_PCT (default 10%).
+disk_check() {
+  local min_pct="${WATCHDOG_DISK_MIN_AVAILABLE_PCT:-10}"
+  local path="${WATCHDOG_DISK_PATH:-/}"
+  local line total_kb used_kb avail_kb avail_pct total_mb used_mb avail_mb message
+
+  line=$(df -kP "$path" 2>/dev/null | awk 'NR==2')
+
+  if [[ -z "$line" ]]; then
+    printf 'fail\t0\tcould not read disk usage for %s\n' "$path"
+    return 0
+  fi
+
+  total_kb=$(awk '{ print $2 }' <<< "$line")
+  used_kb=$(awk '{ print $3 }' <<< "$line")
+  avail_kb=$(awk '{ print $4 }' <<< "$line")
+
+  total_mb=$((total_kb / 1024))
+  used_mb=$((used_kb / 1024))
+  avail_mb=$((avail_kb / 1024))
+  avail_pct=$(awk -v a="$avail_kb" -v t="$total_kb" 'BEGIN { printf "%.1f", (a / t) * 100 }')
+  message="${used_mb}MB/${total_mb}MB used on ${path}, ${avail_mb}MB available (${avail_pct}% free)"
+
+  if awk -v p="$avail_pct" -v m="$min_pct" 'BEGIN { exit !(p < m) }'; then
+    printf 'fail\t0\t%s\n' "$message"
+  else
+    printf 'ok\t0\t%s\n' "$message"
+  fi
+}
