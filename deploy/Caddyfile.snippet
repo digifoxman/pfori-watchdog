@@ -3,9 +3,19 @@
 # app itself is unaware of it (serves / and /api/status as normal).
 #
 # Generate the password hash with: caddy hash-password
+#
+# Note: this Caddyfile directive is "basicauth" (no underscore) on Caddy
+# 2.6.x, the version running on this VPS. Newer Caddy releases renamed it
+# to "basic_auth" - check `caddy version` before copying this elsewhere.
+#
+# The redir is required: handle_path's /watchdog/* matcher does NOT match
+# the bare path /watchdog (no trailing slash) - without it, visitors who
+# type /watchdog fall through to the site's normal reverse_proxy and get a
+# 404 from the Astro app instead of the auth prompt.
 
+    redir /watchdog /watchdog/ permanent
     handle_path /watchdog/* {
-        basic_auth {
+        basicauth {
             <username> <bcrypt-hash>
         }
         reverse_proxy 127.0.0.1:8091
